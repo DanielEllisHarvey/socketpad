@@ -1,50 +1,49 @@
 <script>
-function inits() { var socket = new WebSocket("wss://aeaeae.pw/sockpad/ws/"); return socket };
-let gotFile = false;
-var socket = inits();
-socket.addEventListener("close", () => {
-    var socket = inits();
-    socket.send(JSON.stringify({"Action": "GET"})); gotFile = false;
-});
-document.addEventListener("keydown", (event) => 
-{ socket.send(JSON.stringify({"Action": "INS", "Body": event.key, "Start": document.getElementById("p").selectionStart, "End": document.getElementById("p").selectionEnd, "Length": document.getElementById("p").value.length}))});
-socket.addEventListener("message",(event) =>
-{   let data = JSON.parse(event.data);
-    let selectionRange = [document.getElementById("p").selectionStart,document.getElementById("p").selectionEnd];
-    console.log(parseInt(data["Length"])-document.getElementById("p").value.length)
-    if(Math.abs(data["Length"]-document.getElementById("p").value.length) > 2) { socket.send(JSON.stringify({"Action": "GET"})); gotFile = false; };
-    switch(data["Action"]) {
-        case "GIVE":
-            if (!gotFile) { document.getElementById("p").value = data["Body"]; gotFile++; }
-            break;
-        case "GET":
-            socket.send(JSON.stringify({"Action": "GIVE", "Body": document.getElementById("p").value}));
-            break;
-        case "INS":
-            let body = data["Body"];
-            let bs = 0;
-            if (data["Body"].length > 1)
-            { 
-                switch (data["Body"]) {
-                case "Backspace": 
-                    body = "";
-                    if (selectionRange[0] == selectionRange[1]) bs++;
-                    break;
-                case "Enter":
-                    body = "\n";
-                    break;
-                default:
-                    body = "";
-                    break;
+function inits() { var socket = new WebSocket("wss://aeaeae.pw/sockpad/ws/");
+    var gotFile = false;
+    socket.onconnection = function() { console.log("connected"); }
+    document.addEventListener("keydown", (event) => 
+    {   socket.send(JSON.stringify({"Action": "INS", "Body": event.key, "Start": document.getElementById("p").selectionStart, "End": document.getElementById("p").selectionEnd, "Length": document.getElementById("p").value.length}))});
+    socket.onmessage = function(event)
+    {   let data = JSON.parse(event.data);
+        let selectionRange = [document.getElementById("p").selectionStart,document.getElementById("p").selectionEnd];
+        console.log(parseInt(data["Length"])-document.getElementById("p").value.length)
+        if(Math.abs(data["Length"]-document.getElementById("p").value.length) > 2) { socket.send(JSON.stringify({"Action": "GET"})); gotFile = false; };
+        switch(data["Action"]) {
+            case "GIVE":
+                if (!gotFile) { document.getElementById("p").value = data["Body"]; gotFile++; }
+                break;
+            case "GET":
+                socket.send(JSON.stringify({"Action": "GIVE", "Body": document.getElementById("p").value}));
+                break;
+            case "INS":
+                let body = data["Body"];
+                let bs = 0;
+                if (data["Body"].length > 1)
+                { 
+                    switch (data["Body"]) {
+                    case "Backspace": 
+                        body = "";
+                        if (selectionRange[0] == selectionRange[1]) bs++;
+                        break;
+                    case "Enter":
+                        body = "\n";
+                        break;
+                    default:
+                        body = "";
+                        break;
+                    }
                 }
+                document.getElementById("p").value = document.getElementById("p").value.substr(0,data["Start"]-bs) + body + document.getElementById("p").value.substr(data["End"],data["Length"]);
+                break;
+            default:
+                break;
             }
-            document.getElementById("p").value = document.getElementById("p").value.substr(0,data["Start"]-bs) + body + document.getElementById("p").value.substr(data["End"],data["Length"]);
-            break;
-        default:
-            break;
-        }
-    document.getElementById("p").setSelectionRange(selectionRange[0], selectionRange[1]);
-});
+        document.getElementById("p").setSelectionRange(selectionRange[0], selectionRange[1]);
+    };
+    socket.onclose = function() { setTimeout(inits, 10); }
+}
+inits();
 </script>
 <body>
 <textarea id=p style='width:750px;height:770px'></textarea>
