@@ -1,13 +1,19 @@
 <script>
 function inits() { var socket = new WebSocket("wss://aeaeae.pw/sockpad/ws/");
     var gotFile = false;
+    var keepAlive = setInterval(() => {try { socket.send(JSON.stringify({"Action": "ACK"})) } catch(err) {console.log(err)}}, 10000);
+    setTimeout(() => {socket.send(JSON.stringify({"Action": "GET"}))}, 500);
     document.addEventListener("keydown", (event) => 
-    {   socket.send(JSON.stringify({"Action": "INS", "Body": event.key, "Start": document.getElementById("p").selectionStart, "End": document.getElementById("p").selectionEnd, "Length": document.getElementById("p").value.length}))});
+    {   socket.send(JSON.stringify({"Action": "INS", "Body": event.key, "Start": document.getElementById("p").selectionStart, "End": document.getElementById("p").selectionEnd, "Length": document.getElementById("p").value.length}))
+    });
     socket.onmessage = function(event)
     {   let data = JSON.parse(event.data);
         let selectionRange = [document.getElementById("p").selectionStart,document.getElementById("p").selectionEnd];
-        if(Math.abs(data["Length"]-document.getElementById("p").value.length) > 2) { socket.send(JSON.stringify({"Action": "GET"})); gotFile = false; };
+        if(Math.abs(data["Length"]-document.getElementById("p").value.length) > 1) { socket.send(JSON.stringify({"Action": "GET"})); gotFile = false; };
         switch(data["Action"]) {
+            case "ACK":
+                socket.send(JSON.stringify({"Action": "REACK"}));
+                break;
             case "GIVE":
                 if (!gotFile) { document.getElementById("p").value = data["Body"]; gotFile++; }
                 break;
@@ -39,7 +45,7 @@ function inits() { var socket = new WebSocket("wss://aeaeae.pw/sockpad/ws/");
             }
         document.getElementById("p").setSelectionRange(selectionRange[0], selectionRange[1]);
     };
-    socket.onclose = function() { setTimeout(inits, 10); }
+    socket.onclose = function() { socket.close(); clearInterval(keepAlive); setTimeout(inits, 1000); }
 }
 inits();
 </script>
